@@ -1,62 +1,47 @@
 #!/bin/sh -l
 
 set -ex
-
-: ${WPENGINE_ENVIRONMENT_NAME?Required environment name variable not set.}
-: ${WPENGINE_SSH_KEY_PRIVATE?Required secret not set.}
-: ${WPENGINE_SSH_KEY_PUBLIC?Required secret not set.}
-
-SSH_PATH="$HOME/.ssh"
-WPENGINE_HOST="git.wpengine.com"
-KNOWN_HOSTS_PATH="$SSH_PATH/known_hosts"
-WPENGINE_SSH_KEY_PRIVATE_PATH="$SSH_PATH/wpengine_key"
-WPENGINE_SSH_KEY_PUBLIC_PATH="$SSH_PATH/wpengine_key.pub"
-WPENGINE_ENVIRONMENT_DEFAULT="production"
-WPENGINE_ENV=${WPENGINE_ENVIRONMENT:-$WPENGINE_ENVIRONMENT_DEFAULT}
-LOCAL_BRANCH_DEFAULT="master"
-BRANCH=${LOCAL_BRANCH:-$LOCAL_BRANCH_DEFAULT}
-
-mkdir "$SSH_PATH"
-
-ssh-keyscan -t rsa "$WPENGINE_HOST" >> "$KNOWN_HOSTS_PATH"
-
-echo "$WPENGINE_SSH_KEY_PRIVATE" > "$WPENGINE_SSH_KEY_PRIVATE_PATH"
-echo "$WPENGINE_SSH_KEY_PUBLIC" > "$WPENGINE_SSH_KEY_PUBLIC_PATH"
-
-chmod 700 "$SSH_PATH"
-chmod 644 "$KNOWN_HOSTS_PATH"
-chmod 600 "$WPENGINE_SSH_KEY_PRIVATE_PATH"
-chmod 644 "$WPENGINE_SSH_KEY_PUBLIC_PATH"
-
-# git config --global --add safe.directory /github/workspace
-# git config core.sshCommand "ssh -i $WPENGINE_SSH_KEY_PRIVATE_PATH -o UserKnownHostsFile=$KNOWN_HOSTS_PATH"
-# git remote add $WPENGINE_ENV git@$WPENGINE_HOST:$WPENGINE_ENV/$WPENGINE_ENVIRONMENT_NAME.git
-# git push -fu $WPENGINE_ENV $BRANCH:master
-
 if [ "$ENABLE_POST_DEPLOY_SCRIPT" = "true" ]; then
-    # Commands to execute if the condition is true
-    #post deploy start
-    REMOTE_HOST="wakemanagendev.ssh.wpengine.net"
-    REMOTE_USER="wakemanagendev"
-    REMOTE_SCRIPT_PATH="/home/wpe-user/sites/wakemanagendev/post-deploy.sh"
+    # Required env vars
+    : ${WPENGINE_ENVIRONMENT_NAME?Required environment name variable not set.}
+    : ${POST_DEPLOY_SSH_PRIVATE?Required secret not set.}
 
+    SSH_PATH="$HOME/.ssh"
+    KNOWN_HOSTS_PATH="$SSH_PATH/known_hosts"
+    WPENGINE_SSH_KEY_PRIVATE_PATH="$SSH_PATH/wpengine_key"
 
-    # 1) Add WP Engine host to known_hosts (prevent “Host key verification failed”)
+    # Derive SSH host/user + remote script path from environment name
+    REMOTE_HOST="${WPENGINE_ENVIRONMENT_NAME}.ssh.wpengine.net"
+    REMOTE_USER="${WPENGINE_ENVIRONMENT_NAME}"
+    REMOTE_SCRIPT_PATH="/home/wpe-user/sites/${WPENGINE_ENVIRONMENT_NAME}/post-deploy.sh"
+
+    # Create SSH dir + known_hosts
+    mkdir -p "$SSH_PATH"
+    touch "$KNOWN_HOSTS_PATH"
+
+    chmod 700 "$SSH_PATH"
+    chmod 600 "$KNOWN_HOSTS_PATH"
+
+    # Save private key
+    echo "$POST_DEPLOY_SSH_PRIVATE" > "$WPENGINE_SSH_KEY_PRIVATE_PATH"
+    chmod 600 "$WPENGINE_SSH_KEY_PRIVATE_PATH"
+
+    # Add SSH gateway host to known_hosts (all key types, hostname hashed)
     ssh-keyscan -H "$REMOTE_HOST" >> "$KNOWN_HOSTS_PATH"
 
-    # 2) Execute remote script
-    ssh \
-        -i "$WPENGINE_SSH_KEY_PRIVATE_PATH" \
-        -o IdentitiesOnly=yes \
-        "$REMOTE_USER@$REMOTE_HOST" \
-        "bash $REMOTE_SCRIPT_PATH"
+
+  echo "Running post-deploy script on ${REMOTE_USER}@${REMOTE_HOST}"
+  echo "Remote script: ${REMOTE_SCRIPT_PATH}"
+
+  ssh \
+    -i "$WPENGINE_SSH_KEY_PRIVATE_PATH" \
+    -o IdentitiesOnly=yes \
+    -o UserKnownHostsFile="$KNOWN_HOSTS_PATH" \
+    "$REMOTE_USER@$REMOTE_HOST" \
+    "bash $REMOTE_SCRIPT_PATH"
 else
-    # Commands to execute if the condition is false
-    echo "Post deploy script not enabled"
+  echo "Post deploy script not enabled (ENABLE_POST_DEPLOY_SCRIPT != true)"
 fi
 
-
-
-#cleanup
-rm -r "${SSH_PATH}"
-git remote rm $WPENGINE_ENV
+# Cleanup
+rm -rf "$SSH_PATH"
