@@ -40,22 +40,16 @@ if [ "$ENABLE_POST_DEPLOY_SCRIPT" = "true" ]; then
     REMOTE_USER="wakemanagendev"
     REMOTE_SCRIPT_PATH="/home/wpe-user/sites/wakemanagendev/post-deploy.sh"
 
+
     # 1) Add WP Engine host to known_hosts (prevent “Host key verification failed”)
     ssh-keyscan -H "$REMOTE_HOST" >> "$KNOWN_HOSTS_PATH"
-    echo "=== KNOWN HOSTS CONTENT ==="
-    cat "$KNOWN_HOSTS_PATH"
-    echo "=== KNOWN HOSTS CONTENT END==="
-    echo "=== WPENGINE_SSH_KEY_PRIVATE_PATH ==="
-    cat "$WPENGINE_SSH_KEY_PRIVATE_PATH"
-    echo "=== WPENGINE_SSH_KEY_PRIVATE_PATH  END==="
 
     # 2) Execute remote script
     ssh \
         -i "$WPENGINE_SSH_KEY_PRIVATE_PATH" \
         -o IdentitiesOnly=yes \
-        -o UserKnownHostsFile="$KNOWN_HOSTS_PATH" \
-        wakemanagendev@wakemanagendev.ssh.wpengine.net \
-        "bash /home/wpe-user/sites/wakemanagendev/post-deploy.sh"
+        "$REMOTE_USER@$REMOTE_HOST" \
+        "bash $REMOTE_SCRIPT_PATH"
 else
     # Commands to execute if the condition is false
     echo "Post deploy script not enabled"
