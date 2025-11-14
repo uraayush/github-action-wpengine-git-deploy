@@ -33,20 +33,25 @@ git config core.sshCommand "ssh -i $WPENGINE_SSH_KEY_PRIVATE_PATH -o UserKnownHo
 git remote add $WPENGINE_ENV git@$WPENGINE_HOST:$WPENGINE_ENV/$WPENGINE_ENVIRONMENT_NAME.git
 git push -fu $WPENGINE_ENV $BRANCH:master
 
-# WPENGINE_SSH_USER=${WPENGINE_SSH_USER:-$WPENGINE_ENVIRONMENT_NAME}
-# WPENGINE_SSH_HOST=${WPENGINE_SSH_HOST:-"$WPENGINE_ENVIRONMENT_NAME.ssh.wpengine.net"}
-SCRIPT_URL="/home/wpe-user/sites/$WPENGINE_ENVIRONMENT_NAME/post-deploy.sh"
-# ---- 2) RUN POST-DEPLOY SCRIPT ON WP ENGINE (SSH GATEWAY) ----
-if [ -n "$ENABLE_POST_DEPLOY_SCRIPT" ]; then
-  echo "Running post-deploy script: $ENABLE_POST_DEPLOY_SCRIPT"
-  ssh \
-    -i "$WPENGINE_SSH_KEY_PRIVATE_PATH" \
+
+#post deploy start
+REMOTE_HOST="$WPENGINE_ENVIRONMENT_NAME.ssh.wpengine.net"
+REMOTE_USER="$WPENGINE_ENVIRONMENT_NAME"
+REMOTE_SCRIPT_PATH="/home/wpe-user/sites/$WPENGINE_ENVIRONMENT_NAME/post-deploy.sh"
+SSH_KEY="$WPENGINE_SSH_KEY_PRIVATE_PATH"
+
+# 1) Add WP Engine host to known_hosts (prevent “Host key verification failed”)
+ssh-keyscan -H "$REMOTE_HOST" >> "$KNOWN_HOSTS_PATH"
+
+# 2) Execute remote script
+ssh \
+    -i "$SSH_KEY" \
+    -o IdentitiesOnly=yes \
     -o UserKnownHostsFile="$KNOWN_HOSTS_PATH" \
-    "$WPENGINE_ENVIRONMENT_NAME@$WPENGINE_ENVIRONMENT_NAME.ssh.wpengine.net" \
-    "if [ -x \"$ENABLE_POST_DEPLOY_SCRIPT\" ]; then bash \"$SCRIPT_URL\"; else echo \"Post-deploy script not found or not executable: $ENABLE_POST_DEPLOY_SCRIPT\"; fi"
-else
-  echo "ENABLE_POST_DEPLOY_SCRIPT not set. Skipping post-deploy script."
-fi
+    "$REMOTE_USER@$REMOTE_HOST" \
+    "bash $REMOTE_SCRIPT_PATH"
+
+
 
 #cleanup
 rm -r "${SSH_PATH}"
