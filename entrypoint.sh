@@ -39,8 +39,6 @@ SCRIPT_URL="/home/wpe-user/sites/$WPENGINE_ENVIRONMENT_NAME/post-deploy.sh"
 # ---- 2) RUN POST-DEPLOY SCRIPT ON WP ENGINE (SSH GATEWAY) ----
 if [ -n "$ENABLE_POST_DEPLOY_SCRIPT" ]; then
   echo "Running post-deploy script: $ENABLE_POST_DEPLOY_SCRIPT"
-
-    ssh -i $WPENGINE_SSH_KEY_PRIVATE_PATH -o UserKnownHostsFile=$KNOWN_HOSTS_PATH
   ssh \
     -i "$WPENGINE_SSH_KEY_PRIVATE_PATH" \
     -o UserKnownHostsFile="$KNOWN_HOSTS_PATH" \
