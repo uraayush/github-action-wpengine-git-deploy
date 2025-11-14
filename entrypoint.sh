@@ -32,5 +32,23 @@ git config --global --add safe.directory /github/workspace
 git config core.sshCommand "ssh -i $WPENGINE_SSH_KEY_PRIVATE_PATH -o UserKnownHostsFile=$KNOWN_HOSTS_PATH"
 git remote add $WPENGINE_ENV git@$WPENGINE_HOST:$WPENGINE_ENV/$WPENGINE_ENVIRONMENT_NAME.git
 git push -fu $WPENGINE_ENV $BRANCH:master
+
+WPENGINE_SSH_USER=${WPENGINE_SSH_USER:-$WPENGINE_ENVIRONMENT_NAME}
+WPENGINE_SSH_HOST=${WPENGINE_SSH_HOST:-"$WPENGINE_ENVIRONMENT_NAME.ssh.wpengine.net"}
+SCRIPT_URL="/home/wpe-user/sites/$WPENGINE_ENVIRONMENT_NAME/post-deploy.sh"
+# ---- 2) RUN POST-DEPLOY SCRIPT ON WP ENGINE (SSH GATEWAY) ----
+if [ -n "$ENABLE_POST_DEPLOY_SCRIPT" ]; then
+  echo "Running post-deploy script: $ENABLE_POST_DEPLOY_SCRIPT"
+
+  ssh \
+    -i "$WPENGINE_SSH_KEY_PRIVATE_PATH" \
+    -o UserKnownHostsFile="$KNOWN_HOSTS_PATH" \
+    "$WPENGINE_SSH_USER@$WPENGINE_SSH_HOST" \
+    "if [ -x \"$ENABLE_POST_DEPLOY_SCRIPT\" ]; then bash \"$SCRIPT_URL\"; else echo \"Post-deploy script not found or not executable: $ENABLE_POST_DEPLOY_SCRIPT\"; fi"
+else
+  echo "ENABLE_POST_DEPLOY_SCRIPT not set. Skipping post-deploy script."
+fi
+
+#cleanup
 rm -r "${SSH_PATH}"
 git remote rm $WPENGINE_ENV
