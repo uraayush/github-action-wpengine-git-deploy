@@ -42,6 +42,7 @@ if [ "$ENABLE_POST_DEPLOY_SCRIPT" = "true" ]; then
 
     # 1) Add WP Engine host to known_hosts (prevent “Host key verification failed”)
     ssh-keyscan -H "$REMOTE_HOST" >> "$KNOWN_HOSTS_PATH"
+    echo "$KNOWN_HOSTS_PATH"
 
     # 2) Execute remote script
     ssh \
